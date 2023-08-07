@@ -6,6 +6,8 @@ use std::path::Path;
 use std::process::exit;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use regex::Regex;
+use crate::libs::exports::pad_numbers;
 
 pub struct UserInfo {
     pub name: String,
@@ -170,9 +172,10 @@ pub struct EpisodeInfo {
     pub is_locked: bool,
     pub is_in_free: bool,
     pub ord: f64,
+    pub short_title: String,
 }
 
-impl crate::lib::HasOrd for EpisodeInfo {
+impl crate::libs::HasOrd for EpisodeInfo {
     fn ord(&self) -> f64 {
         self.ord
     }
@@ -205,6 +208,13 @@ fn fix_episode_title(title: &str) -> String {
             result = result.replace(c, "_");
         }
     }
+
+    
+    let special_chars = vec!["【", "】", "[", "]"];
+    for char in special_chars {
+        result = result.replace(char, "");
+    }
+
     result
 }
 
@@ -224,14 +234,26 @@ pub async fn get_comic_info(config: &Config, comic_id: u32) -> ComicInfo {
         match serde_json::from_value::<ComicInfo>(data.to_owned()) {
             Ok(mut value) => {
                 // 如果有标题为空的episode，则使用ord作为标题
+                //TODO 部分漫画ord比较诡异并不是按顺序排的，改为使用short_title
                 for ep in value.ep_list.iter_mut() {
                     // 去除空字符
                     ep.title = ep.title.trim().to_string();
                     if ep.title.is_empty() {
-                        ep.title = format!("第{}话", ep.ord);
+                        ep.title = format!("{} - 第{}话", fix_episode_title(&value.title), pad_numbers(&ep.short_title));
+                    } else {
+                        let check_title = Regex::new(r"^\d+$").unwrap();
+                        if check_title.is_match(&ep.title) {
+                            ep.title = format!("{} - {}", fix_episode_title(&value.title), pad_numbers(&fix_episode_title(&ep.title)));
+                        } else {
+                            if ep.short_title == ep.title {
+                                ep.title = format!("{} - {}", fix_episode_title(&value.title), pad_numbers(&fix_episode_title(&ep.title)));
+                            } else {
+                                ep.title = format!("{} - {} - {}", fix_episode_title(&value.title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
+                            }
+                            
+                        }
                     }
-                    ep.title = fix_episode_title(&ep.title);
-                    // 如果 is_in_free 为 true 则设置 is_locked 为 false
+
                     if ep.is_in_free {
                         ep.is_locked = false;
                     }

@@ -5,26 +5,31 @@ use std::path::{Path, PathBuf};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct EpisodeMeta {
+    // 章节名
     title: String,
-    ord: f64,
     // 顺序号
-    paths: Vec<String>,
+    ord: f64,
     // 页码顺序
+    paths: Vec<String>,
     host: String,
+    // 真实排序号（章节号）
+    short_title: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct EpisodeCache {
-    pub id: u32,
     // episode id 作为文件夹名称
+    pub id: u32,
+    // 章节名
     pub title: String,
-    pub files: Vec<String>,
     // 真实文件列表 xx.jpg, xx.jpg, xx.jpg, ...
-    pub paths: Vec<String>,
+    pub files: Vec<String>,
     // 文件顺序
+    pub paths: Vec<String>,
     pub host: String,
     pub ord: f64,
     pub root_dir: PathBuf,
+    pub short_title: String,
 }
 
 // impl AsRef<EpisodeInfo> for EpisodeCache {
@@ -38,7 +43,7 @@ pub struct EpisodeCache {
 //     }
 // }
 
-impl crate::lib::HasOrd for &'_ EpisodeCache {
+impl crate::libs::HasOrd for &'_ EpisodeCache {
     fn ord(&self) -> f64 {
         self.ord
     }
@@ -68,6 +73,7 @@ impl EpisodeCache {
             host: meta.host,
             ord: meta.ord,
             root_dir: path.as_ref().to_path_buf(),
+            short_title: meta.short_title,
         })
     }
     pub fn sync<T: AsRef<Path>>(&self, path: T) {
@@ -82,6 +88,7 @@ impl EpisodeCache {
             ord: self.ord,
             paths: self.paths.clone(),
             host: self.host.clone(),
+            short_title: self.short_title.clone(),
         };
         let meta_str = toml::to_string(&meta).unwrap();
         meta_file.write_all(meta_str.as_bytes()).unwrap();
@@ -113,15 +120,17 @@ impl EpisodeCache {
 #[derive(serde::Serialize, serde::Deserialize)]
 struct ComicMeta {
     title: String,
+    author_name: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct ComicCache {
-    pub id: u32,
     // 漫画id 作为文件夹名称
-    pub title: String,
+    pub id: u32,
     // 漫画标题
+    pub title: String,
     pub episodes: HashMap<u32, EpisodeCache>,
+    pub author_name: String,
 }
 
 impl ComicCache {
@@ -150,6 +159,7 @@ impl ComicCache {
             id: path.as_ref().file_name()?.to_str()?.parse::<u32>().ok()?,
             title: meta.title,
             episodes,
+            author_name: meta.author_name,
         })
     }
 
@@ -167,6 +177,7 @@ impl ComicCache {
         let mut meta_file = std::fs::File::create(&meta_path).unwrap();
         let meta = ComicMeta {
             title: self.title.clone(),
+            author_name: self.author_name.clone(),
         };
         let meta_str = toml::to_string(&meta).unwrap();
         meta_file.write_all(meta_str.as_bytes()).unwrap();

@@ -1,7 +1,7 @@
 #![allow(clippy::upper_case_acronyms)]
 use super::pdf;
-use crate::lib::cache::EpisodeCache;
-use crate::lib::config::Config;
+use crate::libs::cache::EpisodeCache;
+use crate::libs::config::Config;
 use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
 use indicatif::{MultiProgress, ProgressBar};
 use std::fs::File;
@@ -142,6 +142,7 @@ impl ExportFormat for PDF {
 
 pub struct Epub {
     pub(crate) cover: Option<Vec<u8>>,
+    pub author: String,
 }
 
 const CONTENT_TEMPLATE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -163,6 +164,7 @@ impl Epub {
                 .unwrap();
         }
         builder.metadata("title", title).unwrap();
+        builder.metadata("author", self.author.clone()).unwrap();
         builder.stylesheet(STYLE.as_bytes()).unwrap();
         builder
     }
@@ -528,11 +530,26 @@ fn get_min_max_ord(episodes: &Vec<&EpisodeCache>) -> (f64, f64) {
 impl Item<'_> {
     fn make_file_name(&self) -> String {
         match self {
-            Item::Single(ep) => format!("{}. {}", ep.ord, ep.title),
+            // Item::Single(ep) => format!("{}. {}", ep.ord, ep.title),
+            // Item::Group(eps) => {
+            //     let (min, max) = get_min_max_ord(eps);
+            //     if min == max {
+            //         return format!("{}. {}", min, eps[0].title);
+            //     }
+            //     format!(
+            //         "{}-{}. {}-{}",
+            //         min,
+            //         max,
+            //         eps[0].title,
+            //         eps.last().unwrap().title
+            //     )
+            // }
+
+            Item::Single(ep) => format!("{}", ep.title),
             Item::Group(eps) => {
                 let (min, max) = get_min_max_ord(eps);
                 if min == max {
-                    return format!("{}. {}", min, eps[0].title);
+                    return format!("{}", eps[0].title);
                 }
                 format!(
                     "{}-{}. {}-{}",
@@ -591,4 +608,33 @@ pub fn export(
     overall_bar.finish_and_clear();
     bar.finish_and_clear();
     m.clear().unwrap();
+}
+
+pub fn pad_numbers(input: &str) -> String {
+    let mut result = String::new();
+    let mut number_start = None;
+
+    for (i, c) in input.char_indices() {
+        if c.is_digit(10) {
+            if number_start.is_none() {
+                number_start = Some(i);
+            }
+        } else {
+            if let Some(start) = number_start {
+                let number = &input[start..i];
+                let padded_number = format!("{:0>4}", number);
+                result.push_str(&padded_number);
+                number_start = None;
+            }
+            result.push(c);
+        }
+    }
+
+    if let Some(start) = number_start {
+        let number = &input[start..];
+        let padded_number = format!("{:0>4}", number);
+        result.push_str(&padded_number);
+    }
+
+    result
 }

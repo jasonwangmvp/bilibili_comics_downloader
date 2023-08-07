@@ -1,6 +1,6 @@
 use clap::{Arg, Command};
 
-mod lib;
+mod libs;
 
 #[tokio::main]
 async fn main() {
@@ -125,29 +125,29 @@ async fn main() {
 
             if matches.is_present("sessdata") {
                 if let Some(sessdata) = matches.value_of("sessdata") {
-                    lib::login(lib::LoginMethod::SESSDATA(sessdata.to_string())).await
+                    libs::login(libs::LoginMethod::SESSDATA(sessdata.to_string())).await
                 } else {
                     log.error("缺少SESSDATA参数");
                     log.info("使用bcdown login -s <SESSDATA> 来登录");
                 }
             } else if matches.is_present("qrcode") {
-                lib::login(lib::LoginMethod::QRCODE).await
+                libs::login(libs::LoginMethod::QRCODE).await
             } else {
-                lib::show_login_info().await
+                libs::show_login_info().await
             }
         }
         Some(("info", _)) => {
-            lib::info().await;
+            libs::info().await;
         }
         Some(("clear", _)) => {
-            lib::clear();
+            libs::clear();
         }
         Some(("list", _)) => {
-            lib::list().await;
+            libs::list().await;
         }
         Some(("search", matches)) => {
             if let Some(id_or_link) = matches.value_of("id_or_link") {
-                lib::search(id_or_link.to_owned()).await;
+                libs::search(id_or_link.to_owned()).await;
             } else {
                 log.error("缺少漫画的ID或者链接");
                 log.info("使用bcdown search <ID_OR_LINK> 来搜索漫画");
@@ -160,7 +160,7 @@ async fn main() {
         Some(("fetch", matches)) => {
             if let Some(id_or_link) = matches.value_of("id_or_link") {
                 let range = matches.value_of("range").unwrap_or("").to_string();
-                lib::fetch(id_or_link.to_owned(), range).await;
+                libs::fetch(id_or_link.to_owned(), range).await;
             } else {
                 log.error("缺少漫画的ID或者链接");
                 log.info("使用bcdown fetch <ID_OR_LINK> 来保存漫画");
@@ -199,7 +199,7 @@ async fn main() {
                     log.error("目前只支持导出 epub | pdf | zip 格式");
                     return;
                 }
-                lib::export(
+                libs::export(
                     id_or_link.to_owned(),
                     range,
                     grouping,

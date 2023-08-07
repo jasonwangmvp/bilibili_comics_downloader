@@ -1,6 +1,6 @@
 [package]
 name = "bcdown"
-version = "0.2.2"
+version = "0.2.2.1"
 edition = "2021"
 authors = ["lihe07"]
 keywords = ["bcdown", "bilibili", "downloader", "comic"]
@@ -32,6 +32,8 @@ serde = { version = "1.0.147", features = ["derive"] }
 tokio = { version = "1.21.1", features = ["full"] }
 toml = "0.5.9"
 zip = "0.6.2"
+regex = "1.3.0"
+
 
 [profile.release]
 lto = true

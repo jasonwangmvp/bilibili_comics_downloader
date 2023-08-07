@@ -11,10 +11,10 @@ use std::process::exit;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 
-use crate::lib::cache::EpisodeCache;
-use crate::lib::config::Config;
-use crate::lib::exports::Item;
-use crate::lib::network::{down_to, EpisodeInfo};
+use crate::libs::cache::EpisodeCache;
+use crate::libs::config::Config;
+use crate::libs::exports::Item;
+use crate::libs::network::{down_to, EpisodeInfo};
 
 pub mod cache;
 pub mod config;
@@ -197,9 +197,11 @@ pub async fn list() {
             .iter()
             .map(|e| {
                 if e.not_downloaded().is_empty() {
-                    format!("    {} - {} - {}", e.ord, e.title, "已下载".green())
+                    format!("    导出序号:{} - {} - {}", e.ord, "已下载".green(), e.title)
+                    //format!("    {} - {}", e.title, "已下载".green())
                 } else {
-                    format!("    {} - {} - {}", e.ord, e.title, "未下载".red())
+                    format!("    导出序号:{} - {} - {}", e.ord, "未下载".red(), e.title)
+                    //format!("    {} - {}", e.title, "未下载".red())
                 }
             })
             .collect::<Vec<_>>();
@@ -251,9 +253,11 @@ pub async fn search(id_or_link: String) {
         .map(|ep| {
             let ep = ep.to_owned();
             if ep.is_locked {
-                format!("    {} - {} - {}", ep.ord, "锁定".red(), ep.title)
+                format!("    下载序号: {} - {} - {}", ep.ord, "锁定".red(), ep.title)
+                //format!("    {} - {}", "锁定".red(), ep.title)
             } else {
-                format!("    {} - {} - {}", ep.ord, "可用".green(), ep.title)
+                format!("    下载序号: {} - {} - {}", ep.ord, "可用".green(), ep.title)
+                //format!("    {} - {}", "可用".green(), ep.title)
             }
         })
         .collect();
@@ -292,6 +296,7 @@ async fn run_task(
             host: indexes.host,
             ord: ep.ord,
             root_dir: ep_root.to_path_buf(),
+            short_title: ep.short_title.to_owned(),
         };
         ep_cache.sync(&ep_root);
         ep_cache
@@ -336,6 +341,7 @@ pub async fn fetch(id_or_link: String, range: String) {
     let comic_cache = if let Some(comic) = cache.get_comic(id) {
         let mut comic = comic.clone();
         comic.title = comic_info.title.to_owned();
+        comic.author_name = comic_info.author_name.join(",");
         comic
     } else {
         // 并没有这个漫画的缓存，则创建一个
@@ -343,6 +349,7 @@ pub async fn fetch(id_or_link: String, range: String) {
         cache::ComicCache {
             id,
             title: comic_info.title.to_owned(),
+            author_name: comic_info.author_name.join(","),
             episodes: HashMap::new(),
         }
     };
@@ -377,7 +384,8 @@ pub async fn fetch(id_or_link: String, range: String) {
         .iter()
         .map(|ep| {
             let ep = ep.to_owned();
-            format!("    {} - {}", ep.ord, ep.title)
+            //format!("    {} - {}", ep.ord, ep.title)
+            format!("    {}", ep.title)
         })
         .collect();
     println!("{}", episodes.join("\n"));
@@ -600,6 +608,7 @@ pub fn export(
                 } else {
                     None
                 },
+                author: comic_cache.author_name.clone(),
             }
             .into()
         } else {
