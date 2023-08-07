@@ -1,3 +1,7 @@
+# 分支说明
+
+该分支基于(https://github.com/lihe07/bilibili_comics_downloader)的主分支修改而来，主要改动了导出文件名的格式和标题格式，防止部分阅读软件按照字典排序导致话数混乱问题
+
 # bcdown
 
 [Bilibili漫画](manga.bilibili.com/)下载器，written in [Rust](rust-lang.org/)
