@@ -221,8 +221,10 @@ fn fix_episode_title(title: &str) -> String {
 pub async fn get_comic_info(config: &Config, comic_id: u32) -> ComicInfo {
     let mut log = paris::Logger::new();
     log.loading("获取漫画信息...");
+	
     let mut payload = HashMap::new();
     payload.insert("comic_id", comic_id);
+	
     let client = config.get_client();
     let url = "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web";
 
@@ -231,27 +233,17 @@ pub async fn get_comic_info(config: &Config, comic_id: u32) -> ComicInfo {
 
         let value: serde_json::Value = resp.json().await.unwrap();
         let data = value.get("data").unwrap();
+		
         match serde_json::from_value::<ComicInfo>(data.to_owned()) {
             Ok(mut value) => {
-                // 如果有标题为空的episode，则使用ord作为标题
-                //TODO 部分漫画ord比较诡异并不是按顺序排的，改为使用short_title
                 for ep in value.ep_list.iter_mut() {
                     // 去除空字符
                     ep.title = ep.title.trim().to_string();
+
                     if ep.title.is_empty() {
-                        ep.title = format!("{} - 第{}话", fix_episode_title(&value.title), pad_numbers(&ep.short_title));
+                        handle_empty_title(ep, &value.title);
                     } else {
-                        let check_title = Regex::new(r"^\d+$").unwrap();
-                        if check_title.is_match(&ep.title) {
-                            ep.title = format!("{} - {}", fix_episode_title(&value.title), pad_numbers(&fix_episode_title(&ep.title)));
-                        } else {
-                            if ep.short_title == ep.title {
-                                ep.title = format!("{} - {}", fix_episode_title(&value.title), pad_numbers(&fix_episode_title(&ep.title)));
-                            } else {
-                                ep.title = format!("{} - {} - {}", fix_episode_title(&value.title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
-                            }
-                            
-                        }
+                        handle_title(ep, &value.title);
                     }
 
                     if ep.is_in_free {
@@ -270,6 +262,45 @@ pub async fn get_comic_info(config: &Config, comic_id: u32) -> ComicInfo {
         log.done();
         log.error("无法获取漫画信息 请检查网络");
         exit(1);
+    }
+}
+
+fn check_title_format(title: &str) -> bool {
+    let check_title = Regex::new(r"^\d+$").unwrap();
+    check_title.is_match(title)
+}
+
+fn handle_empty_title(ep: &mut EpisodeInfo, comic_title: &str) {
+    if check_title_format(&ep.short_title) {
+        ep.title = format!("{} - {} - 第{}话", fix_episode_title(comic_title), pad_numbers(&ep.short_title), fix_episode_title(&ep.short_title));
+    }else{
+        ep.title = format!("{} - {}", fix_episode_title(comic_title), pad_numbers(&ep.short_title));
+    }
+}
+
+fn handle_title(ep: &mut EpisodeInfo, comic_title: &str) {
+    let check_title = Regex::new(r"^\d+$").unwrap();
+    if check_title_format(&ep.title) {
+        if !&ep.short_title.is_empty() && !check_title.is_match(&ep.short_title) {
+            ep.title = format!("{} - {} - {}", fix_episode_title(comic_title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
+        }else{
+            if ep.short_title == ep.title {
+                ep.title = format!("{} - {} - 第{}话", fix_episode_title(comic_title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
+            }else{
+                ep.title = format!("{} - {} - {}", fix_episode_title(comic_title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
+            }
+        }
+    } else {
+        let sn = extract_episode_number(&ep.title);
+        if ep.short_title == ep.title && sn.is_some() {
+            let padded_string = pad_numbers(&sn.unwrap());
+            ep.title = format!("{} - {} - {}", fix_episode_title(comic_title), padded_string, fix_episode_title(&ep.title));
+        } else if let Some(sn) = extract_episode_number(&ep.short_title) {
+            let padded_string = pad_numbers(&sn);
+            ep.title = format!("{} - {} - {}", fix_episode_title(comic_title), padded_string, fix_episode_title(&ep.title));
+        } else {
+            ep.title = format!("{} - {} - {}", fix_episode_title(comic_title), pad_numbers(&ep.short_title), fix_episode_title(&ep.title));
+        }
     }
 }
 
@@ -349,4 +380,14 @@ pub async fn down_to<T: AsRef<Path>>(config: &Config, url: String, path: T) -> O
     let mut file = File::create(&path).await.ok()?;
     file.write_all(&bytes).await.unwrap();
     Some(bytes.len())
+}
+
+fn extract_episode_number(input: &str) -> Option<String> {
+    if let Some(start) = input.find('第') {
+        if let Some(end) = input[start + 3..].chars().position(|c| c == '话') {
+            let extracted: String = input[start + 3..start + 3 + end].chars().collect();
+            return Some(extracted);
+        }
+    }
+    None
 }

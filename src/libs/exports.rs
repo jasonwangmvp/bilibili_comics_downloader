@@ -164,7 +164,7 @@ impl Epub {
                 .unwrap();
         }
         builder.metadata("title", title).unwrap();
-        builder.metadata("author", self.author.clone()).unwrap();
+        builder.metadata("author", process_author_string(self.author.clone())).unwrap();
         builder.stylesheet(STYLE.as_bytes()).unwrap();
         builder
     }
@@ -635,6 +635,21 @@ pub fn pad_numbers(input: &str) -> String {
         let padded_number = format!("{:0>4}", number);
         result.push_str(&padded_number);
     }
+
+    result
+}
+
+fn process_author_string(input_str: String) -> String {
+    // 按英文逗号分割字符串
+     let mut arr: Vec<&str> = input_str.split(',').collect();
+
+    // 如果元素大于等于2个，则移除最后一个元素
+    if arr.len() >= 2 {
+        arr.pop();
+    }
+
+    // 将剩余的元素按英文逗号分割并转换为字符串
+    let result = arr.join(",");
 
     result
 }
