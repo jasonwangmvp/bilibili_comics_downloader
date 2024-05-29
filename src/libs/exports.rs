@@ -552,7 +552,7 @@ impl Item<'_> {
                     return format!("{}", eps[0].title);
                 }
                 format!(
-                    "{}-{}. {}-{}",
+                    "{}-{}. {}~{}",
                     min,
                     max,
                     eps[0].title,
